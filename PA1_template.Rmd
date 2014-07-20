@@ -18,3 +18,155 @@
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+
+
+---
+title: 'Reproducible Results - Assignment #1'
+author: "AS"
+date: "Thursday, July 17, 2014"
+output: html_document
+---
+
+## Introduction
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+## Data
+
+The data for this assignment can be downloaded from the course web site:
+
+Dataset: Activity monitoring data [52K]
+The variables included in this dataset are:
+
+steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+
+date: The date on which the measurement was taken in YYYY-MM-DD format
+
+interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+## Report
+
+```{r, Data set up and processing, echo=FALSE}
+#
+
+# 
+library(ggplot2)
+library(plyr)
+
+setwd("C:\\Users\\Aizaz\\Documents\\R-Programming\\Reproducible")
+
+#Downloading and reading the data "activity.csv"
+
+ 
+data <- read.csv("activity.csv", colClasses = c("numeric", "Date", "numeric"), header = T) 
+
+
+Day <- aggregate(steps ~ date, data, sum, na.action = na.pass)
+Day.mean <- mean((Day$steps), na.rm=T)
+Day.median <- median((Day$steps), na.rm=T)
+
+```
+
+```{r, Set up for 1st Graph, echo=FALSE }
+
+Day.median <- median((Day$steps), na.rm=T)
+
+Day <- cbind(Day, label = rep("with.na", nrow(Day)))
+```
+
+What is mean total number of steps taken per day? Answer: `r Day.mean`
+ 
+
+What is median total number of steps taken per day?Answer: `r Day.median`
+
+
+The histogram of the total number of steps taken daily, plotted with a bin interval of 1500 steps.
+Graph of Total_#_of_Steps_Taken_Each_Day
+```{r, fig.height=6}
+
+ggplot(Day, aes(x = steps)) + geom_histogram(binwidth = 1500, colour = "black", fill = "yellow") + labs(title = "Steps Taken per Day", x = "Number of Steps", y = "Frequency")
+```
+
+What is the average daily activity pattern? We make a graph to answer that.
+Graph of Average_Daily_Activity_Pattern
+```{r,  Making the plot Average_Daily_Activity_Pattern, echo=FALSE, fig.height=6}
+#  Make the plot of the average number of steps taken daily plotted against the interval number.
+Interval <- aggregate(steps ~ interval, data, mean, na.rm = TRUE)
+
+# Making the plot Average_Daily_Activity_Pattern
+```
+```{r, fig.height=6}
+ggplot(Interval, aes(x = interval, y = steps)) + geom_line() + labs(title = "Average of Steps taken Daily", x = "Interval", y = "Number of steps")
+```
+
+```{r, echo=FALSE}
+tr = length(data$steps)
+cr = length(na.omit(data$steps))
+mr = tr - cr
+Max.Steps5<- Interval$interval[Interval$steps == max(Interval$steps)]
+ 
+```
+The absolute max number of Steps in a 5 minute interval is `r Max.Steps5`.
+
+The total records in data are `r tr`. The missing records ("na") are `r mr`.
+
+```{r, Imputing code, echo=FALSE}
+
+# Imputing missing values
+# Imputing Strategy - use the average of an interval in place of "na"
+data.IA <- adply(data, 1, function(x) if (is.na(x$steps)) {
+  x$steps = round(Interval[Interval$interval == x$interval, 2])
+  x
+} else {
+  x
+})
+# Label Day.IA
+Day.IA <- aggregate(steps ~ date, data.IA, sum)
+Day.IA <- cbind(Day.IA, label = rep("without.na", nrow(Day.IA)))
+# Generating the Number_of_Steps_Taken_Each_Day_w_Int_Row_Average
+```
+It is a commonly accepted in statitics to replace missing value in a data set with the avrage. This strategy allows for proceeding with statistical process while minimizing  the effect of value used on the end results. This becomes harder to do when missing values are many. The stratgy used below is to use the averabe missing value of an interval within that interval. 
+
+The graph of steps taken an interval with missing records replaced by an aeverage nubmer of steps within an inteval is
+
+```{r, fig.height=6}
+ggplot(Day.IA, aes(x = steps)) + geom_histogram(binwidth = 1500, colour = "black", fill = "cyan") + labs(title = "Steps Taken per Day", x = "Number of Steps",  y = "Frequency")
+```
+
+```{r, Activity w/ and w/o NAs, echo=FALSE }
+Day.A <- rbind(Day, Day.IA)
+levels(Day.A$label) <- c("With NA", "Without NA")
+# Making the plot of Steps_Taken_Each_Day_w&wo_NAs
+```
+```{r, fig.height=6}
+ggplot(Day.A, aes(x = steps, fill = label)) + geom_histogram(binwidth = 1500, colour = "red", alpha = 0.2) + labs(title = "Steps Taken per Day", x = "Number of Steps", y = "Frequency") + theme(legend.position = "bottom")
+```
+Are there differences in activity patterns between weekdays and weekends?
+
+We make two subsets for Weekdays and weekend.
+```{r, echo=FALSE}
+data.SS <- subset(data.IA, weekdays(date) %in% c("Saturday", "Sunday"))
+data.MF <- subset(data.IA, !weekdays(date) %in% c("Saturday", "Sunday"))
+
+# Getting the average steps per interval for each dataset
+data.SS <- aggregate(steps ~ interval, data.SS, mean)
+data.MF <- aggregate(steps ~ interval, data.MF, mean)
+
+# For plotting we add a label
+data.SS <- cbind(data.SS, day = rep("weekend"))
+data.MF <- cbind(data.MF, day = rep("weekday"))
+
+# Combine the subsets and a specify the levels
+data.week <- rbind(data.SS, data.MF)
+levels(data.week$day) <- c("Weekend", "Weekday")
+```
+Plot Wknd_vs_Wkday
+```{r, fig.height=6}
+
+ggplot(data.week, aes(x = interval, y = steps)) + geom_line() + facet_grid(day ~ .) + labs(x = "Interval", y = "Number of steps")
+```
